@@ -5,13 +5,50 @@ import win32security
 import pywintypes
 import win32event
 import sys
-from ntsecuritycon import TokenPrivileges # A structure for token privileges
-from ntsecuritycon import TokenUser # A structure for token ownership
 class token_manipulator:
+    token_struc = {
+"TokenUser" : 1,
+"TokenGroups" : 2,
+"TokenPrivileges" : 3,
+"TokenOwner" : 4,
+"TokenPrimaryGroup" : 5,
+"TokenDefaultDacl" : 6,
+"TokenSource" : 7,
+"TokenType" : 8,
+"TokenImpersonationLevel" : 9,
+"TokenStatistics" : 10,
+"TokenRestrictedSids" : 11,
+"TokenSessionId" : 12,
+"TokenGroupsAndPrivileges" : 13,
+"TokenSessionReference" : 14,
+"TokenSandBoxInert" : 15,
+"TokenAuditPolicy" : 16,
+"TokenOrigin" : 17,
+"TokenElevationType" : 18,
+"TokenLinkedToken" : 19,
+"TokenElevation" : 20,
+"TokenHasRestrictions" : 21,
+"TokenAccessInformation" : 22,
+"TokenVirtualizationAllowed" : 23,
+"TokenVirtualizationEnabled" : 24,
+"TokenIntegrityLevel" : 25,
+"TokenUIAccess" : 26,
+"TokenMandatoryPolicy" : 27,
+"TokenLogonSid" : 28,
+}
+    def get_all(token):
+        data_dict = {}
+        for entry in token_manipulator.token_struc:
+            try:
+                data_dict.update({entry : win32security.GetTokenInformation(token,token_manipulator.token_struc[entry])})
+            except Exception as e:
+                pass
+        return data_dict
+        
     def elevate_token(token):
         # Given a token, it enables all privileges for that token
         supertoken = []
-        privs = win32security.GetTokenInformation(token,TokenPrivileges) # Gets privileges for the token
+        privs = win32security.GetTokenInformation(token,token_manipulator.token_struc["TokenPrivileges"]) # Gets privileges for the token
         for priv in privs:
             toenable = priv[0]
             supertoken.append((toenable,2)) # Sets the attribute of the privilege LUID to '2' (enabled)
@@ -91,7 +128,7 @@ class token_manipulator:
                 procHandle = win32api.OpenProcess(win32con.MAXIMUM_ALLOWED,pywintypes.FALSE,pid) # Opens process with 'MAXIMUM_ALLOWED' privileges
                 tokenHandle = win32security.OpenProcessToken(procHandle,win32con.MAXIMUM_ALLOWED) # Opens the process with ADJUST_PRIVILEGES and TOKEN_QUERY rights
                 tokenDup = win32security.DuplicateTokenEx(tokenHandle,3,win32con.MAXIMUM_ALLOWED,win32security.TokenPrimary,win32security.SECURITY_ATTRIBUTES())
-                tokenSID = win32security.GetTokenInformation(tokenHandle,TokenUser)[0] # gets token sid
+                tokenSID = win32security.GetTokenInformation(tokenHandle,token_manipulator.token_struc["TokenUser"])[0] # gets token sid
                 processName = win32process.GetModuleFileNameEx(procHandle,0) # Gets the main module of the program
                 processName = processName.split("\\")[processName.count("\\")] # Gets filename from path
                 username = win32security.LookupAccountSid(None,tokenSID)
@@ -121,8 +158,8 @@ class token_manipulator:
             try:
                 procHandle = win32api.OpenProcess(win32con.MAXIMUM_ALLOWED,pywintypes.FALSE,pid) # Opens process with 'MAXIMUM_ALLOWED' privileges
                 tokenHandle = win32security.OpenProcessToken(procHandle,win32con.MAXIMUM_ALLOWED) # Opens the process with ADJUST_PRIVILEGES and TOKEN_QUERY rights
-                tokenInfo = win32security.GetTokenInformation(tokenHandle,TokenPrivileges) # returns a tuple where the 0'th object of each entry is a LUID (locally unique ID) for the privilege
-                tokenSID = win32security.GetTokenInformation(tokenHandle,TokenUser)[0] # gets token sid
+                tokenInfo = win32security.GetTokenInformation(tokenHandle,token_manipulator.token_struc["TokenPrivileges"]) # returns a tuple where the 0'th object of each entry is a LUID (locally unique ID) for the privilege
+                tokenSID = win32security.GetTokenInformation(tokenHandle,token_manipulator.token_struc["TokenUser"])[0] # gets token sid
                 processName = win32process.GetModuleFileNameEx(procHandle,0) # Gets the main module of the program
                 processName = processName.split("\\")[processName.count("\\")] # Gets filename from path
                 username = win32security.LookupAccountSid(None,tokenSID)
@@ -132,7 +169,11 @@ class token_manipulator:
                 print(f"[#] '{processName}' Privileges : ")
                 for privNumber in tokenInfo:
                     pname = win32security.LookupPrivilegeName(None,privNumber[0])
-                    print(" ----- > " + pname)
+                    if privNumber[1] == 3:
+                        enabled = "Enabled"
+                    else:
+                        enabled = "Disabled"
+                    print(" ----- > " + pname + " : " + enabled)
             except Exception as e:
                 pass
     def usage():
@@ -166,11 +207,13 @@ class token_manipulator:
                  
 [TNUM Token Manipulator]
 Usage :
-    tnum.py [LIST/ELEVATE/IMPERSONATE/IMPERSONATABLE]
+    tnum.py [LIST/ELEVATE/IMPERSONATE/IMPERSONATABLE/ATTRIBUTES]
     
     Impersonate:
         tnum.py impersonate PID
-    
+
+    Attributes:
+        tnum.py attributes PID
             ''')
     def main():
         if len(sys.argv) < 2:
@@ -191,6 +234,35 @@ Usage :
                         pid = int(pid)
                         print("[+] Impersonating")
                         token_manipulator.shell_as(pid)
+                    except ValueError:
+                        print("[-] Please specify an integer for the PID")
+                        token_manipulator.usage()
+                        sys.exit(0)
+            elif option.lower() == 'impersonatable':
+                token_manipulator.impersonatable()
+                
+            elif option.lower() == "attributes":
+                if len(sys.argv) < 3:
+                    print("[-] Please specify a PID")
+                    token_manipulator.usage()
+                else:
+                    pid = sys.argv[2]
+                    try:
+                        pid = int(pid)
+                        print("[+] Getting Attributes")
+                        try:
+                            procHandle = win32api.OpenProcess(win32con.MAXIMUM_ALLOWED,pywintypes.FALSE,pid)
+                        except pywintypes.error as err:
+                            if "'The parameter is incorrect.'" in str(err):
+                                print("[-] A program with that PID is not running")
+                                sys.exit(1)
+                            elif "'Access is denied.'" in str(err):
+                                print("[-] Access denied")
+                                sys.exit(1)
+                        tokenHandle = win32security.OpenProcessToken(procHandle,win32con.MAXIMUM_ALLOWED)
+                        data = token_manipulator.get_all(tokenHandle)
+                        for entry in data:
+                            print(f"[+] {entry} : {data[entry]}")
                     except ValueError:
                         print("[-] Please specify an integer for the PID")
                         token_manipulator.usage()
