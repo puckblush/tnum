@@ -1,5 +1,6 @@
 import win32process
 import win32api
+import win32timezone
 import win32con
 import win32security
 import pywintypes
