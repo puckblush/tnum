@@ -153,7 +153,7 @@ class token_manipulator:
 
 
             
-    def list():
+    def list(delegate=False,nonprimary=False):
         for pid in win32process.EnumProcesses():
             try:
                 procHandle = win32api.OpenProcess(win32con.MAXIMUM_ALLOWED,pywintypes.FALSE,pid) # Opens process with 'MAXIMUM_ALLOWED' privileges
@@ -164,16 +164,33 @@ class token_manipulator:
                 processName = processName.split("\\")[processName.count("\\")] # Gets filename from path
                 username = win32security.LookupAccountSid(None,tokenSID)
                 standard_username = username[1] + "\\" + username[0] # DOMAIN + USERNAME
-                print(f"[#] We can open '{processName}' with PID '{pid}'")
-                print(f"[#] Owned by {standard_username}")
-                print(f"[#] '{processName}' Privileges : ")
-                for privNumber in tokenInfo:
-                    pname = win32security.LookupPrivilegeName(None,privNumber[0])
-                    if privNumber[1] == 3:
-                        enabled = "Enabled"
-                    else:
-                        enabled = "Disabled"
-                    print(" ----- > " + pname + " : " + enabled)
+                logonType = win32security.GetTokenInformation(tokenHandle,token_manipulator.token_struc["TokenType"])
+                impersonationLevel = win32security.GetTokenInformation(tokenHandle,token_manipulator.token_struc["TokenStatistics"])["ImpersonationLevel"]
+                print_entry = True
+                if logonType == 1:
+                    logonType = "Primary"
+                elif logonType == 2:
+                    logonType == "Impersonation"
+                if delegate:
+                    if impersonationLevel == 0:
+                        print_entry = False
+                if nonprimary:
+                    if logonType == "Primary":
+                        print_entry = False
+                if print_entry:
+                    print(f"[#] We can open '{processName}' with PID '{pid}'")
+                    print(f"[#] Owned by {standard_username}")
+                    print(f"[#] Token Type : {logonType}")
+                    print(f"[#] Impersonation Level : {impersonationLevel}")
+                    print(f"[#] '{processName}' Privileges : ")
+                
+                    for privNumber in tokenInfo:
+                        pname = win32security.LookupPrivilegeName(None,privNumber[0])
+                        if privNumber[1] == 3:
+                            enabled = "Enabled"
+                        else:
+                            enabled = "Disabled"
+                        print(" ----- > " + pname + " : " + enabled)
             except Exception as e:
                 pass
     def usage():
@@ -207,13 +224,23 @@ class token_manipulator:
                  
 [TNUM Token Manipulator]
 Usage :
-    tnum.py [LIST/ELEVATE/IMPERSONATE/IMPERSONATABLE/ATTRIBUTES]
+    tnum.py OPTIONS
+
+
+    Basic Options :
+    list : Lists processes and their corresponding token information
+    elevate : Spawns a CMD prompt with all privileges enabled
+    impersonatable : Lists processes whose tokens can be used to spawn a process
+    nonprimary : Lists tokens that are not primary tokens (BETA)
+    delegate : Lists possible delegate tokens (BETA)
+    
+    Advanced Options :
     
     Impersonate:
-        tnum.py impersonate PID
+        tnum.py impersonate PID :: Spawns a CMD prompt with a corresponding process PID's primary token
 
     Attributes:
-        tnum.py attributes PID
+        tnum.py attributes PID :: Gets all token attributes of a process PID
             ''')
     def main():
         if len(sys.argv) < 2:
@@ -222,6 +249,14 @@ Usage :
             option = sys.argv[1]
             if option.lower() == 'list':
                 token_manipulator.list()
+            elif option.lower() == "delegate":
+                print("[+] Listing delegate tokens")
+                token_manipulator.list(delegate=True)
+                print("[+] Done!")
+            elif option.lower() == 'nonprimary':
+                print("[+] Listing non-primary tokens")
+                token_manipulator.list(nonprimary=True)
+                print("[+] Done!")
             elif option.lower() == 'elevate':
                 token_manipulator.elevate_privileges()
             elif option.lower() == "impersonate":
