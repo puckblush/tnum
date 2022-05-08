@@ -17,4 +17,10 @@ Duplicates a token from a process, enables all of it's privileges and uses it to
 Lists all the processes whose primary tokens can be duplicated and used to spawn processes<br>
 </br>
 <b>== ATTRIBUTES ==</b><br>
-Gets all the token attributes of a process
+Gets all the token attributes of a process<br>
+<br>
+<b>== DELEGATE ==</b><br>
+Lists possible delegate tokens (BETA)<br>
+<br>
+<b>== NON-PRIMARY ==</b><br>
+Lists non-primary tokens (BETA)
