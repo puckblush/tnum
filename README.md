@@ -1,5 +1,6 @@
 # tnum
-A python script for working with Windows tokens
+A python script for working with Windows tokens<br>
+![Alt Text](/Capture.PNG?raw=True "Image")
 
 <h2>Features :</h2>
 
@@ -13,4 +14,7 @@ Enables all privileges for the current process' token and spawns a command promp
 Duplicates a token from a process, enables all of it's privileges and uses it to spawn a command prompt (you usually have to run this as SYSTEM to switch users)<br>
 <br>
 <b>== IMPERSONATABLE ==</b><br>
-Lists all the processes whose primary tokens can be duplicated and used to spawn processes
+Lists all the processes whose primary tokens can be duplicated and used to spawn processes<br>
+</br>
+<b>== ATTRIBUTES ==</b><br>
+Gets all the token attributes of a process
