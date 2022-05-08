@@ -65,7 +65,7 @@ class token_manipulator:
                 sys.exit(1)
             else:
                 print("[?] Unknown Error : ",err)
-        print("[+] Getting handle on current process")
+        print("[+] Getting handle on target process")
         tokenHandle = win32security.OpenProcessToken(procHandle,win32con.MAXIMUM_ALLOWED)
         print("[+] Calling DuplicateTokenEx")
         try:
