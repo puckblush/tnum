@@ -1,7 +1,7 @@
 import win32process
 import win32api
-import win32timezone
 import win32con
+import win32timezone
 import win32security
 import pywintypes
 import win32event
@@ -118,7 +118,7 @@ class token_manipulator:
         win32event.WaitForSingleObject(hProc,win32event.INFINITE) # Waits for the process for an infinite amount of time
             
             
-    def impersonatable():
+    def impersonatable(notuser=False):
         # This method gets a list of processes and tries to call DuplicateTokenEx on it's token, creating a new primary token.
         # It will then enable all privileges for that token
         # Then, it will try to spawn the calculator app with the primary token, if this works then it means that the token can be used on a process.
@@ -134,27 +134,33 @@ class token_manipulator:
                 processName = processName.split("\\")[processName.count("\\")] # Gets filename from path
                 username = win32security.LookupAccountSid(None,tokenSID)
                 standard_username = username[1] + "\\" + username[0] # DOMAIN + USERNAME
-                (hProc,hThread,procId,threadId) = win32process.CreateProcessAsUser(
-                        tokenDup, # Primary token
-                        None,   # AppName
-                        'calc.exe', # Executable path
-                        None, # Process security 
-                        None, # Thread security
-                        1, # Inherit Object Handles
-                        win32process.NORMAL_PRIORITY_CLASS, # Priority for the process
-                        None, # Environment 
-                        None, # Current Directory ('None' defaults to current directory)
-                        win32process.STARTUPINFO() # Startup info (default)
-                )
-                win32process.TerminateProcess(hProc,0)
-                print(f"[#] We can spawn a process with the token of '{processName}' with PID '{pid}'")
-                print(f"[#] Owned by {standard_username}")
-            except Exception as e:
+                toPrint = True
+                if notuser:
+                    if standard_username.lower() == notuser.lower() or standard_username.split("\\")[1] == notuser.lower():
+                        toPrint = False
+                    else:
+                        (hProc,hThread,procId,threadId) = win32process.CreateProcessAsUser(
+                                tokenDup, # Primary token
+                                None,   # AppName
+                                'calc.exe', # Executable path
+                                None, # Process security 
+                                None, # Thread security
+                                1, # Inherit Object Handles
+                                win32process.NORMAL_PRIORITY_CLASS, # Priority for the process
+                                None, # Environment 
+                                None, # Current Directory ('None' defaults to current directory)
+                                win32process.STARTUPINFO() # Startup info (default)
+                        )
+                        win32process.TerminateProcess(hProc,0)
+                        print(f"[#] We can spawn a process with the token of '{processName}' with PID '{pid}'")
+                        print(f"[#] Owned by {standard_username}")
+            except pywintypes.error as e:
                 pass
+                
 
 
             
-    def list(delegate=False,nonprimary=False):
+    def list(delegate=False,nonprimary=False,notuser=False):
         for pid in win32process.EnumProcesses():
             try:
                 procHandle = win32api.OpenProcess(win32con.MAXIMUM_ALLOWED,pywintypes.FALSE,pid) # Opens process with 'MAXIMUM_ALLOWED' privileges
@@ -178,6 +184,9 @@ class token_manipulator:
                 if nonprimary:
                     if logonType == "Primary":
                         print_entry = False
+                if notuser:
+                    if standard_username.lower() == notuser.lower() or standard_username.split("\\")[1].lower() == notuser.lower():
+                        print_entry = False
                 if print_entry:
                     print(f"[#] We can open '{processName}' with PID '{pid}'")
                     print(f"[#] Owned by {standard_username}")
@@ -192,7 +201,7 @@ class token_manipulator:
                         else:
                             enabled = "Disabled"
                         print(" ----- > " + pname + " : " + enabled)
-            except Exception as e:
+            except pywintypes.error as e:
                 pass
     def usage():
         print('''
@@ -231,7 +240,7 @@ Usage :
     Basic Options :
     list : Lists processes and their corresponding token information
     elevate : Spawns a CMD prompt with all privileges enabled
-    impersonatable : Lists processes whose tokens can be used to spawn a process
+    impersonatable : Lists process tokens that can be used to spawn a process
     nonprimary : Lists tokens that are not primary tokens (BETA)
     delegate : Lists possible delegate tokens (BETA)
     
@@ -242,6 +251,12 @@ Usage :
 
     Attributes:
         tnum.py attributes PID :: Gets all token attributes of a process PID
+
+    Not-User:
+        tnum.py notuser USERNAME :: Gets all tokens that don't belong to a specified user
+
+    Not-User-Impersonatable:
+        tnum.py notuserimpersonatable USERNAME :: Gets all impersonatable tokens that don't belong to a specified user
             ''')
     def main():
         if len(sys.argv) < 2:
@@ -274,6 +289,22 @@ Usage :
                         print("[-] Please specify an integer for the PID")
                         token_manipulator.usage()
                         sys.exit(0)
+            elif option.lower() == "notuser":
+                if len(sys.argv) < 3:
+                    print("[-] Please specify a username")
+                    token_manipulator.usage()
+                else:
+                    username = sys.argv[2]
+                    print("[+] Getting Tokens")
+                    token_manipulator.list(notuser=username)
+            elif option.lower() == "notuserimpersonatable":
+                if len(sys.argv) < 3:
+                    print("[-] Please specify a username")
+                    token_manipulator.usage()
+                else:
+                    username = sys.argv[2]
+                    print("[+] Getting Tokens")
+                    token_manipulator.impersonatable(notuser=username)
             elif option.lower() == 'impersonatable':
                 token_manipulator.impersonatable()
                 
