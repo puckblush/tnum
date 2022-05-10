@@ -138,22 +138,22 @@ class token_manipulator:
                 if notuser:
                     if standard_username.lower() == notuser.lower() or standard_username.split("\\")[1] == notuser.lower():
                         toPrint = False
-                    else:
-                        (hProc,hThread,procId,threadId) = win32process.CreateProcessAsUser(
-                                tokenDup, # Primary token
-                                None,   # AppName
-                                'calc.exe', # Executable path
-                                None, # Process security 
-                                None, # Thread security
-                                1, # Inherit Object Handles
-                                win32process.NORMAL_PRIORITY_CLASS, # Priority for the process
-                                None, # Environment 
-                                None, # Current Directory ('None' defaults to current directory)
-                                win32process.STARTUPINFO() # Startup info (default)
-                        )
-                        win32process.TerminateProcess(hProc,0)
-                        print(f"[#] We can spawn a process with the token of '{processName}' with PID '{pid}'")
-                        print(f"[#] Owned by {standard_username}")
+                if toPrint:
+                    (hProc,hThread,procId,threadId) = win32process.CreateProcessAsUser(
+                            tokenDup, # Primary token
+                            None,   # AppName
+                            'calc.exe', # Executable path
+                            None, # Process security 
+                            None, # Thread security
+                            1, # Inherit Object Handles
+                            win32process.NORMAL_PRIORITY_CLASS, # Priority for the process
+                            None, # Environment 
+                            None, # Current Directory ('None' defaults to current directory)
+                            win32process.STARTUPINFO() # Startup info (default)
+                    )
+                    win32process.TerminateProcess(hProc,0)
+                    print(f"[#] We can spawn a process with the token of '{processName}' with PID '{pid}'")
+                    print(f"[#] Owned by {standard_username}")
             except pywintypes.error as e:
                 pass
                 
